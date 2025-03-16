@@ -1,44 +1,36 @@
-# CMake minimum version
 cmake_minimum_required(VERSION 3.12)
+project(binary_reader)
 
-# Project name
-project(BinaryReader)
-
-# Set C++ standard (e.g., C++17)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Source files
+# Find Python (only if Python module is built)
+option(BUILD_PYTHON_MODULE "Build Python module" ON)
+
+if(BUILD_PYTHON_MODULE)
+    find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+    find_package(pybind11 REQUIRED)
+endif()
+
+# Common source files
 set(SOURCES
-    src/main.cc
     src/BinaryReader.cc
 )
 
-# Header files
 set(HEADERS
     include/BinaryReader.h
 )
 
-add_definitions(-DEXTENDED)
-set(CMAKE_BUILD_TYPE Debug)
+# ========== Build Standalone Executable ==========
+#add_executable(binary_reader_exec src/main.cc ${SOURCES})
+#target_include_directories(binary_reader_exec PRIVATE include)
 
-# Add executable
-add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
+#find_package(Threads REQUIRED)
+#target_link_libraries(binary_reader_exec PRIVATE Threads::Threads)
 
-target_compile_definitions(${PROJECT_NAME} PRIVATE EXTENDED)
-
-target_include_directories(${PROJECT_NAME} PRIVATE
-    include
-    # Add additional include directories if needed
-)
-
-# Set include directories
-
-# Find and link the threading library
-set(THREADS_PREFER_PTHREAD_FLAG ON)
-find_package(Threads REQUIRED)
-
-set(CMAKE_CXX_FLAGS
-    "${CMAKE_CXX_FLAGS} -W  -pthread"
-)
-
+# ========== Optional: Build Python Module ==========
+if(BUILD_PYTHON_MODULE)
+    pybind11_add_module(binary_reader src/pybinds.cc ${SOURCES})
+    target_include_directories(binary_reader PRIVATE include)
+    target_link_libraries(binary_reader PRIVATE Python3::Python)
+endif()

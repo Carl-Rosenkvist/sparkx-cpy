@@ -1,14 +1,11 @@
 #ifndef BINARYREADER_H
 #define BINARYREADER_H
+
 #include <iostream>
 #include <fstream>
 #include <memory>
 #include <vector>
-class BaseParticle {
 
- virtual void read(std::ifstream& bfile) = 0;
-
-};
 
 
 template <typename ParticleType>
@@ -93,35 +90,29 @@ class BinaryReader {
 public:
     void read(std::ifstream& bfile) {
         char blockType;
-        events.push_back(Event<ParticleType>());
-        int event_counter = 0;
 
         while (bfile.read(&blockType, sizeof(blockType))) {
             switch (blockType) {
                 case 'p': {
                     ParticleBlock<ParticleType> p_block;
                     p_block.read(bfile);
-                    if (checkNext(bfile)) {
-                        events[event_counter].particle_blocks.push_back(p_block);
-                    }
+
+                   all_particles.insert(all_particles.end(), 
+                                        p_block.particles.begin(), 
+                                        p_block.particles.end());
+                    
                     break;
                 }
 
                 case 'i': {
                     InteractionBlock<ParticleType> i_block;
                     i_block.read(bfile);
-                    if (checkNext(bfile)) {
-                        events[event_counter].interaction_blocks.push_back(i_block);
-                    }
                     break;
                 }
 
                 case 'f': {
                     EndBlock e_block;
                     e_block.read(bfile);
-                    events[event_counter].end_block = e_block;
-                    events.push_back(Event<ParticleType>());
-                    event_counter++;
                     break;
                 }
 
@@ -132,6 +123,38 @@ public:
         }
     }
 
-    std::vector<Event<ParticleType>> events;
+    std::vector<ParticleType>& getAllParticles() {
+        return all_particles;
+    }
+  void readHeader(std::ifstream& bfile) {
+    char magic_number[5]; // 4 characters + null terminator
+    uint16_t format_version;
+    uint16_t format_variant;
+    uint32_t len;
+
+    // Read header fields
+    bfile.read(magic_number, sizeof(char) * 4);
+    magic_number[4] = '\0'; // Null-terminate the string
+
+    bfile.read(reinterpret_cast<char*>(&format_version), sizeof(uint16_t));
+    bfile.read(reinterpret_cast<char*>(&format_variant), sizeof(uint16_t));
+    bfile.read(reinterpret_cast<char*>(&len), sizeof(uint32_t));
+
+    char smash_version[len + 1]; // Allocate memory for smash_version (+1 for null terminator)
+    bfile.read(smash_version, len);
+    smash_version[len] = '\0'; // Null-terminate the string
+
+    // For demonstration purposes, print the header information
+   // std::cout << "Magic Number: " << magic_number << std::endl;
+    //std::cout << "Format Version: " << format_version << std::endl;
+    //std::cout << "Format Variant: " << format_variant << std::endl;
+    //std::cout << "Smash Version: " << smash_version << std::endl;
+}
+
+private:
+    std::vector<ParticleType> all_particles;
 };
+
+
+
 #endif
