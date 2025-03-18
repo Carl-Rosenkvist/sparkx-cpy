@@ -2,6 +2,7 @@
 #include <pybind11/stl.h>
 #include <pybind11/embed.h>
 #include "BinaryReader.h"
+#include "ParticleData.h"
 #include <fstream>
 #include <vector>
 #include <string>
@@ -9,83 +10,8 @@
 
 namespace py = pybind11;
 
-
-struct Field {
-    enum class Type { Double, Int32 };
-    std::string name;
-    Type type;
-    size_t offset = 0;
-
-    Field(const std::string& n, Type t) : name(n), type(t), offset(0) {}
-};
-
-struct Schema {
-    std::vector<Field> fields;
-    size_t particle_size = 0;
-
-    Schema(const std::vector<Field>& f) : fields(f) {
-        compute_offsets();
-    }
-
-    Schema() = default;
-
-    void compute_offsets() {
-        particle_size = 0;
-        for (auto& field : fields) {
-            field.offset = particle_size;
-            particle_size += (field.type == Field::Type::Double) ? sizeof(double) : sizeof(int32_t);
-        }
-    }
-};
-
-
-class ParticleData {
+class Particle : public ParticleData {
 public:
-    static Schema schema;
-
-    static void set_schema(const Schema& s) {
-        schema = s;
-    }
-
-    ParticleData() : data(schema.particle_size) {}
-
-    void read(std::ifstream& bfile) {
-        bfile.read(data.data(), schema.particle_size);
-    }
-
-    template<typename T>
-    T get_field(size_t field_index) const {
-        if (field_index >= schema.fields.size()) {
-            throw std::out_of_range("Field index is out of bounds!");
-        }
-
-        const auto& field = schema.fields[field_index];
-        size_t offset = field.offset;
-
-        if (offset + sizeof(T) > data.size()) {
-            throw std::runtime_error("Field offset is out of bounds: possible corrupt data!");
-        }
-
-        return *reinterpret_cast<const T*>(data.data() + offset);
-    }
-
-    void print() const {
-        std::cout << "ParticleData {" << std::endl;
-        for (size_t i = 0; i < schema.fields.size(); ++i) {
-            const auto& field = schema.fields[i];
-
-            std::cout << "  " << field.name << ": ";
-
-            if (field.type == Field::Type::Double)
-                std::cout << get_field<double>(i);
-            else if (field.type == Field::Type::Int32)
-                std::cout << get_field<int32_t>(i);
-
-            std::cout << std::endl;
-        }
-        std::cout << "}" << std::endl;
-    }
-
     py::dict to_pydict() const {
         py::dict particle_dict;
         for (size_t i = 0; i < schema.fields.size(); ++i) {
@@ -97,45 +23,57 @@ public:
         }
         return particle_dict;
     }
+};
+
+class ParticleStorer : public ParticleTypeStorer<Particle> {
+public:
+    ParticleStorer() {
+        auto particle_module = py::module::import("sparkx");
+        particle_class = particle_module.attr("Particle");
+    }
+
+    void store(const std::vector<Particle>& particles) override {
+        
+    
+      for (const auto& particle : particles) {
+            auto py_particle = particle_class();
+
+            const auto& fields = ParticleData::get_schema().fields;
+            for (size_t i = 0; i <fields.size(); i++){
+              py_particle.attr(fields[i].name.c_str()) = 
+         (fields[i].type == Field::Type::Double) ? particle.get_field<double>(i)
+                                    : particle.get_field<int32_t>(i);
+
+            }
+            particle_list.append(py_particle);
+        }
+    }
+
+    py::list get_particles() { return particle_list; }
 
 private:
-    std::vector<char> data;
+    py::object particle_class;
+    py::list particle_list;
 };
-Schema ParticleData::schema{{}}; 
 
 py::list get_particle_objects(const std::string& filename, const std::vector<Field>& fields) {
-    py::gil_scoped_acquire gil; 
+    py::gil_scoped_acquire gil;
 
     Schema schema(fields);
     schema.compute_offsets();
     ParticleData::set_schema(schema);
 
     std::ifstream bfile(filename, std::ios::binary);
-
-    BinaryReader<ParticleData> reader;
-    reader.readHeader(bfile);
-    reader.read(bfile);
-    bfile.close();
-
-    auto& particles = reader.getAllParticles();
-
-    auto particle_module = py::module::import("sparkx");
-    auto particle_class = particle_module.attr("Particle");
-
-    py::list particle_list;
-
-    for (const auto& pdata : particles) {
-        py::object particle = particle_class();
-        py::dict pdata_dict = pdata.to_pydict();
-
-        for (auto item : pdata_dict) {
-            particle.attr(item.first.cast<std::string>().c_str()) = item.second;
-        }
-
-        particle_list.append(particle);
+    if (!bfile) {
+        throw std::runtime_error("Failed to open file: " + filename);
     }
 
-    return particle_list;
+    ParticleStorer storer;
+    BinaryReader<Particle> reader{storer};
+
+    reader.read(bfile);  // Read data from file
+
+    return storer.get_particles();  // Return Python list
 }
 
 PYBIND11_MODULE(binary_reader, m) {
@@ -147,7 +85,6 @@ PYBIND11_MODULE(binary_reader, m) {
         .def(py::init<const std::string&, Field::Type>())
         .def_readwrite("name", &Field::name)
         .def_readwrite("type", &Field::type);
-
 
     m.def("get_particle_objects", &get_particle_objects,
           "Read particle data and return Python Particle objects");

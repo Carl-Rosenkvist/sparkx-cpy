@@ -19,6 +19,7 @@ set(SOURCES
 
 set(HEADERS
     include/BinaryReader.h
+    include/ParticleData.h
 )
 
 # ========== Build Standalone Executable ==========

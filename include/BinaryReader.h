@@ -7,6 +7,11 @@
 #include <vector>
 
 
+template< typename ParticleType> class ParticleTypeStorer{
+public:
+  virtual void store(const std::vector<ParticleType>& particles) = 0;
+};
+
 
 template <typename ParticleType>
 class ParticleBlock {
@@ -88,6 +93,7 @@ bool checkNext(std::ifstream& bfile);
 template <typename ParticleType>
 class BinaryReader {
 public:
+    BinaryReader(ParticleTypeStorer<ParticleType>& storer) : storer(storer){}
     void read(std::ifstream& bfile) {
         char blockType;
 
@@ -97,11 +103,7 @@ public:
                     
                     ParticleBlock<ParticleType> p_block;
                     p_block.read(bfile);
-
-                   all_particles.insert(all_particles.end(), 
-                                        p_block.particles.begin(), 
-                                        p_block.particles.end());
-                    
+                    storer.store(p_block.particles);
                     break;
                 }
 
@@ -124,9 +126,6 @@ public:
         }
     }
 
-    std::vector<ParticleType>& getAllParticles() {
-        return all_particles;
-    }
   void readHeader(std::ifstream& bfile) {
     char magic_number[5]; // 4 characters + null terminator
     uint16_t format_version;
@@ -153,7 +152,9 @@ public:
 }
 
 private:
-    std::vector<ParticleType> all_particles;
+
+  ParticleTypeStorer<ParticleType>& storer;
+
 };
 
 
