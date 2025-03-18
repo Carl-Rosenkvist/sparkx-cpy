@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Find Python (only if Python module is built)
-option(BUILD_PYTHON_MODULE "Build Python module" ON)
+option(BUILD_PYTHON_MODULE "Build Python module" OFF)
 
 if(BUILD_PYTHON_MODULE)
     find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
@@ -22,11 +22,11 @@ set(HEADERS
 )
 
 # ========== Build Standalone Executable ==========
-#add_executable(binary_reader_exec src/main.cc ${SOURCES})
-#target_include_directories(binary_reader_exec PRIVATE include)
+add_executable(binary_reader_exec src/main.cc ${SOURCES})
+target_include_directories(binary_reader_exec PRIVATE include)
 
-#find_package(Threads REQUIRED)
-#target_link_libraries(binary_reader_exec PRIVATE Threads::Threads)
+find_package(Threads REQUIRED)
+target_link_libraries(binary_reader_exec PRIVATE Threads::Threads)
 
 # ========== Optional: Build Python Module ==========
 if(BUILD_PYTHON_MODULE)

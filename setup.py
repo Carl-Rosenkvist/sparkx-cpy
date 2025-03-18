@@ -15,7 +15,7 @@ class BuildExt(build_ext):
 
         # Pass pybind11_DIR to cmake
         os.system(f"cmake {os.getcwd()} -B{self.build_temp} -Dpybind11_DIR={pybind11_cmake_dir}")
-        os.system(f"cmake --build {self.build_temp}")
+        os.system(f"cmake --DBUILD_PYTHON_MODULE=ON -build {self.build_temp} ")
         super().run()
 
 # Get the pybind11 include directory directly
@@ -28,7 +28,7 @@ setup(
         "binary_reader", 
         ["src/pybinds.cc"],
         include_dirs=[pybind11_include_dir,"include"],  # Add this line to include pybind11 headers
-        extra_compile_args=['-O3', '-Wall']  # you can set flags explicitly here
+        extra_compile_args=['-O3', '-Wall','-std=c++11']  # you can set flags explicitly here
     )],
     cmdclass={"build_ext": BuildExt},
     zip_safe=False,

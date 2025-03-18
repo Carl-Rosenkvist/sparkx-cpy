@@ -15,8 +15,8 @@ public:
         int32_t event_number; //New field
         int32_t ensamble_number; //New field
         uint32_t npart;
-        bfile.read(reinterpret_cast<char*>(&event_number), sizeof(uint32_t));
-        bfile.read(reinterpret_cast<char*>(&ensamble_number), sizeof(uint32_t)); 
+        //bfile.read(reinterpret_cast<char*>(&event_number), sizeof(uint32_t));
+        //bfile.read(reinterpret_cast<char*>(&ensamble_number), sizeof(uint32_t)); 
         bfile.read(reinterpret_cast<char*>(&npart), sizeof(uint32_t));
         particles.resize(npart);
         for (auto& part : particles) {
@@ -63,7 +63,7 @@ private:
 struct EndBlock {
     void read(std::ifstream& bfile) {
         bfile.read(reinterpret_cast<char*>(&event_number), sizeof(event_number));
-        bfile.read(reinterpret_cast<char*>(&ensamble_number), sizeof(ensamble_number));
+        //bfile.read(reinterpret_cast<char*>(&ensamble_number), sizeof(ensamble_number));
         bfile.read(reinterpret_cast<char*>(&impact_parameter), sizeof(impact_parameter));
         bfile.read(&empty, sizeof(empty));
     }
@@ -92,8 +92,9 @@ public:
         char blockType;
 
         while (bfile.read(&blockType, sizeof(blockType))) {
-            switch (blockType) {
+          switch (blockType) {
                 case 'p': {
+                    
                     ParticleBlock<ParticleType> p_block;
                     p_block.read(bfile);
 
@@ -145,10 +146,10 @@ public:
     smash_version[len] = '\0'; // Null-terminate the string
 
     // For demonstration purposes, print the header information
-   // std::cout << "Magic Number: " << magic_number << std::endl;
-    //std::cout << "Format Version: " << format_version << std::endl;
-    //std::cout << "Format Variant: " << format_variant << std::endl;
-    //std::cout << "Smash Version: " << smash_version << std::endl;
+    std::cout << "Magic Number: " << magic_number << std::endl;
+    std::cout << "Format Version: " << format_version << std::endl;
+    std::cout << "Format Variant: " << format_variant << std::endl;
+    std::cout << "Smash Version: " << smash_version << std::endl;
 }
 
 private:
